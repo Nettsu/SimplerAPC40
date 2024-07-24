@@ -29,7 +29,7 @@ public class SimplerAPC40Extension extends ControllerExtension
       mTransport.isPlaying().markInterested();
 
       mTrackBank = mHost.createTrackBank(NUM_TRACKS, NUM_SENDS, NUM_SCENES);
-
+      mMasterTrack = mHost.createMasterTrack(NUM_SCENES);
       mSceneBank = mTrackBank.sceneBank();
       mTrackBank.setShouldShowClipLauncherFeedback(true);
 
@@ -129,6 +129,7 @@ public class SimplerAPC40Extension extends ControllerExtension
 
    public static TrackBank mTrackBank;
    public static SceneBank mSceneBank;
+   public static MasterTrack mMasterTrack;
    
    public static CursorRemoteControlsPage mMasterRemotes;
    public static CursorRemoteControlsPage[] mRemoteControls;

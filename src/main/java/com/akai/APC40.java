@@ -18,6 +18,9 @@ public class APC40 {
   static final int CLIP_STOP_NOTE = 0x34;
   static final int AB_NOTE = 0x42;
 
+  static final int MASTER_NOTE = 0x50;
+  static final int STOP_ALL_NOTE = 0x51;
+  static final int SCENE_NOTE = 0x52;
   static final int PAN_NOTE = 0x57;
   static final int SEND_A_NOTE = 0x58;
   static final int SEND_B_NOTE = 0x59;
@@ -191,22 +194,26 @@ public class APC40 {
     mSideKnobControl = 3;
     updateAllKnobLEDs();
 
+    mMasterTrack.addIsSelectedInMixerObserver(selected -> {
+      mMidiOut.sendMidi((MSG_NOTE_ON << 4), MASTER_NOTE, selected ? 1 : 0);
+    });
+
     for (int i = 0; i < 8; i++) {
       final int track_idx = i;
       Track track = mChannels[i];
 
       track.solo().addValueObserver(solo -> {
-        if (!mShift)
           mMidiOut.sendMidi((MSG_NOTE_ON << 4) | track_idx, SOLO_NOTE, solo ? 1 : 0);
       });
 
       track.mute().addValueObserver(mute -> {
         if (mShift)
-          mMidiOut.sendMidi((MSG_NOTE_ON << 4) | track_idx, SOLO_NOTE, mute ? 1 : 0);
+          mMidiOut.sendMidi((MSG_NOTE_ON << 4) | track_idx, ARM_NOTE, mute ? 1 : 0);
       });
 
       track.arm().addValueObserver(arm -> {
-        mMidiOut.sendMidi((MSG_NOTE_ON << 4) | track_idx, ARM_NOTE, arm ? 1 : 0);
+        if (!mShift)
+          mMidiOut.sendMidi((MSG_NOTE_ON << 4) | track_idx, ARM_NOTE, arm ? 1 : 0);
       });
 
       track.addIsSelectedInMixerObserver(selected -> {
@@ -243,7 +250,7 @@ public class APC40 {
 
       track.isQueuedForStop().addValueObserver(stopQueued -> {
         mHost.println("isQueuedForStop: " + stopQueued);
-        if (stopQueued)
+        if (stopQueued && !track.isStopped().get())
           mMidiOut.sendMidi((MSG_NOTE_ON << 4) | track_idx, CLIP_STOP_NOTE, 2);
       });
       
@@ -304,7 +311,7 @@ public class APC40 {
 
   private void updateClipLED(int row, int col, ClipLauncherSlot slot, int state, boolean queued) {
     RGBState slot_colour = new RGBState(slot.color().get());
-    RGBState play_colour = new RGBState(slot.color().get(), RGBState.RGB_TYPE_PULSING);
+    RGBState play_colour = RGBState.WHITE; //new RGBState(slot.color().get(), RGBState.RGB_TYPE_PULSING);
     RGBState play_queued_colour = new RGBState(slot.color().get(), RGBState.RGB_TYPE_PULSING_FAST);
     RGBState stop_queued_colour = play_colour;
     switch (state) {
@@ -325,11 +332,11 @@ public class APC40 {
 
   private void updateTrackButtons() {
     for (int i = 0; i < 8; i++) {
+      mMidiOut.sendMidi((MSG_NOTE_ON << 4) | i, SOLO_NOTE, mChannels[i].solo().getAsBoolean() ? 1 : 0);
       if (!mShift)
-        mMidiOut.sendMidi((MSG_NOTE_ON << 4) | i, SOLO_NOTE, mChannels[i].solo().getAsBoolean() ? 1 : 0);
+        mMidiOut.sendMidi((MSG_NOTE_ON << 4) | i, ARM_NOTE, mChannels[i].arm().getAsBoolean() ? 1 : 0);
       else
-        mMidiOut.sendMidi((MSG_NOTE_ON << 4) | i, SOLO_NOTE, mChannels[i].mute().getAsBoolean() ? 1 : 0);
-      mMidiOut.sendMidi((MSG_NOTE_ON << 4) | i, ARM_NOTE, mChannels[i].arm().getAsBoolean() ? 1 : 0);
+        mMidiOut.sendMidi((MSG_NOTE_ON << 4) | i, ARM_NOTE, mChannels[i].mute().getAsBoolean() ? 1 : 0);
     }
   }
 
@@ -374,8 +381,20 @@ public class APC40 {
       return;
     }
 
+    if (note >= SCENE_NOTE && note < SCENE_NOTE + NUM_SCENES) {
+      mSceneBank.launch(note - SCENE_NOTE);
+      return;
+    }
+
     // switch for noteOn only buttons
     switch(note) {
+      case MASTER_NOTE:
+        mMasterTrack.selectInEditor();
+        break;
+      case STOP_ALL_NOTE:
+        for (int col = 0; col < NUM_TRACKS; col++)
+        mChannels[col].stop();
+        break;
       case CLIP_STOP_NOTE:
         mChannels[channel].stop();
         break;
@@ -401,18 +420,18 @@ public class APC40 {
         mChannels[channel].selectInEditor();
         break;
       case SOLO_NOTE:
+        boolean solo_val = mChannels[channel].solo().getAsBoolean();
+        mChannels[channel].solo().set(!solo_val);
+        break;
+      case ARM_NOTE:
         if (!mShift) {
-          boolean solo_val = mChannels[channel].solo().getAsBoolean();
-          mChannels[channel].solo().set(!solo_val);
+          boolean rec_val = mChannels[channel].arm().getAsBoolean();
+          mChannels[channel].arm().set(!rec_val);
         }
         else {
           boolean mute_val = mChannels[channel].mute().getAsBoolean();
           mChannels[channel].mute().set(!mute_val);
         }
-        break;
-      case ARM_NOTE:
-        boolean rec_val = mChannels[channel].arm().getAsBoolean();
-        mChannels[channel].arm().set(!rec_val);
         break;
       case PAN_NOTE:
         mTopKnobControl = TOP_KNOBS_DEVICE;
@@ -497,7 +516,7 @@ public class APC40 {
         break;
       case TEMPO_CC:
         if (value < 64) mTransport.tempo().incRaw(value);
-        else mTransport.tempo().incRaw(128 - value);
+        else mTransport.tempo().incRaw(value - 128);
         break;
     }
     if (cc >= TOP_KNOBS_CC && cc < TOP_KNOBS_CC + 8) {

@@ -122,11 +122,17 @@ public class RGBState extends InternalHardwareLightState {
    }
 
    public static void send(MidiOut m, int i, RGBState s) {
-      if (s.mType == RGB_TYPE_PULSING || s.mType == RGB_TYPE_PULSING_FAST)
-         m.sendMidi((MSG_NOTE_ON << 4), i, WHITE.mNumber);
-      else if (s.mType == RGB_TYPE_BLINKING)
-         m.sendMidi((MSG_NOTE_ON << 4), i, OFF.mNumber);
-      m.sendMidi((MSG_NOTE_ON << 4) | s.mType, i, s.mNumber);
+      if (s.mType == RGB_TYPE_PULSING || s.mType == RGB_TYPE_PULSING_FAST) {
+         m.sendMidi((MSG_NOTE_ON << 4), i, s.mNumber);
+         m.sendMidi((MSG_NOTE_ON << 4) | s.mType, i, WHITE.mNumber);
+      }
+      else if (s.mType == RGB_TYPE_BLINKING) {
+         m.sendMidi((MSG_NOTE_ON << 4), i, s.mNumber);
+         m.sendMidi((MSG_NOTE_ON << 4) | s.mType, i, WHITE.mNumber);
+      }
+      else {
+         m.sendMidi((MSG_NOTE_ON << 4), i, s.mNumber);
+      }
    }  
 
    public static void sendSys(final MidiOut m, int i, RGBState s) {
@@ -222,42 +228,43 @@ public class RGBState extends InternalHardwareLightState {
    private Object[][] RGB_HEX_COLOR_TABLE = {
       // Kelvin palette manual map
 
-      // {56, "ff6393"}, // 9,1
-      // {5,  "ff1800"}, // 9,2
-      // {6,  "db1200"}, // 9,3
+      {"ff6393", 57}, // 9,1
+      {"ff1800", 120}, // 9,2
+      {"db1200", 6}, // 9,3
       
-      // {4,  "ff8593"}, // 8,1
-      // {60, "ff4a00"}, // 8,2
-      // {127,"db3600"}, // 8,3
+      {"ff8593", 4}, // 8,1
+      {"ff4a00", 60}, // 8,2
+      {"db3600", 127}, // 8,3
 
-      // {107,"f4a893"}, // 7,1
-      // {84, "f27e00"}, // 7,2
-      // {10, "d05d00"}, // 7,3
+      {"f4a893", 107}, // 7,1
+      {"f27e00", 84}, // 7,2
+      {"d05d00", 10}, // 7,3
 
-      // {12, "ffd293"}, // 6,1
-      // {126,"ffbc00"}, // 6,2
-      // {61, "db8a00"}, // 6,3
+      {"ffd293", 12}, // 6,1
+      {"ffbc00", 126}, // 6,2
+      {"db8a00", 61}, // 6,3
 
-      // {109,"f6f69d"}, // 5,1
-      // {13, "ffff26"}, // 5,2
-      // {14, "dbbc1c"}, // 5,3
+      {"f6f69d", 109}, // 5,1
+      {"ffff26", 13}, // 5,2
+      {"dbbc1c", 14}, // 5,3
 
-      // {32, "6ffeff"}, // 4,1
-      // {33, "4dfeff"}, // 4,2
-      // {34, "42bbbc"}, // 4,3
+      {"6ffeff", 32}, // 4,1
+      {"4dfeff", 33}, // 4,2
+      {"42bbbc", 34}, // 4,3
 
-      // {37, "5ad9ff"}, // 3,1
-      // {38, "33c6ff"}, // 3,2
-      // {39, "2c91bc"}, // 3,3
+      {"5ad9ff", 37}, // 3,1
+      {"33c6ff", 38}, // 3,2
+      {"2c91bc", 39}, // 3,3
 
-      // {41, "45affc"}, // 2,1
-      // {42, "1988f9"}, // 2,2
-      // {43, "1564b7"}, // 2,3
+      {"45affc", 41}, // 2,1
+      {"1988f9", 42}, // 2,2
+      {"1564b7", 43}, // 2,3
 
-      // {66, "458bff"}, // 1,1
-      // {45, "1953ff"}, // 1,2
-      // {46, "153dbc"}, // 1,3
+      {"458bff", 66}, // 1,1
+      {"1953ff", 45}, // 1,2
+      {"153dbc", 46}, // 1,3
 
+      {"d9ffb3", 16}, // light green
 
       {"000000", 0},
       {"1E1E1E", 1},
