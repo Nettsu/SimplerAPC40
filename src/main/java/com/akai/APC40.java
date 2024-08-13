@@ -3,6 +3,8 @@ package com.akai;
 import com.bitwig.extension.api.util.midi.ShortMidiMessage;
 import com.bitwig.extension.callback.ShortMidiMessageReceivedCallback;
 import com.bitwig.extension.controller.api.*;
+import com.bitwig.extension.callback.*;
+import java.util.function.*;
 
 import static com.akai.SimplerAPC40Extension.*;
 
@@ -16,6 +18,14 @@ public class APC40 {
   static final int TRACK_NUM_NOTE = 0x32;
   static final int SELECT_NOTE = 0x33;
   static final int CLIP_STOP_NOTE = 0x34;
+  static final int DEVICE_LEFT_NOTE = 0x3A;
+  static final int DEVICE_RIGHT_NOTE = 0x3B;
+  static final int BANK_LEFT_NOTE = 0x3C;
+  static final int BANK_RIGHT_NOTE = 0x3D;
+  static final int DEVICE_ON_OFF_NOTE = 0x3E;
+  static final int DEVICE_LOCK_NOTE = 0x3F;
+  static final int CLIP_DEV_VIEW_NOTE = 0x40;
+  static final int DETAIL_VIEW_NOTE = 0x41;
   static final int AB_NOTE = 0x42;
 
   static final int MASTER_NOTE = 0x50;
@@ -43,21 +53,6 @@ public class APC40 {
   static final int TEMPO_CC = 0x0D;
   static final int MASTER_CC = 0x0E;
   static final int CROSSFADER_CC = 0x0F;
-   
-  static final int APC40_COLOUR_OFF = 12;
-  static final int APC40_COLOUR_RED = 15;
-  static final int APC40_COLOUR_RED_LOW = 13;
-  static final int APC40_COLOUR_GREEN = 60;
-  static final int APC40_COLOUR_GREEN_LOW = 28;
-  static final int APC40_COLOUR_YELLOW = 63;
-  static final int APC40_COLOUR_AMBER = 47;
-  static final int APC40_COLOUR_ORANGE = 31;
-  static final int APC40_COLOUR_AMBER_LOW = 29;
-
-  static final int MUTE_COLOUR = APC40_COLOUR_ORANGE;
-  static final int SOLO_COLOUR = APC40_COLOUR_YELLOW;
-  static final int ARM_COLOUR = APC40_COLOUR_RED;
-  static final int SELECT_COLOUR = APC40_COLOUR_GREEN_LOW;
 
   public static final int RING_INIT = -1;
   public static final int RING_OFF = 0;
@@ -97,85 +92,95 @@ public class APC40 {
     mTrackBank.getItemAt(7),
   };
 
-  private int[] mKnobTypes = {
-    RING_PAN,
-    RING_VOLUME,
-    RING_VOLUME,
-    RING_SINGLE,
-    RING_SINGLE
+  private int[][] mKnobTypes = { 
+    {
+      RING_PAN, RING_PAN, RING_PAN, RING_PAN, RING_PAN, RING_PAN, RING_PAN, RING_PAN
+    },
+    {
+      RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME
+    },
+    {
+      RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME
+    },
+    {
+      RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_PAN, RING_PAN, RING_VOLUME
+    },
+    {
+      RING_SINGLE, RING_SINGLE, RING_SINGLE, RING_SINGLE, RING_SINGLE, RING_SINGLE, RING_SINGLE, RING_SINGLE
+    }
   };
 
   private int[][] mKnobDAWValues = new int[5][8];
   private int[][] mKnobAPCValues = new int[5][8];
 
-  private SettableRangedValue[][] mKnobControls = {
+  private Parameter[][] mKnobControls = {
     // first row (Pan / Device)
     {
-      mRemoteControls[0].getParameter(0).value(),
-      mRemoteControls[1].getParameter(0).value(),
-      mRemoteControls[2].getParameter(0).value(),
-      mRemoteControls[3].getParameter(0).value(),
-      mRemoteControls[4].getParameter(0).value(),
-      mRemoteControls[5].getParameter(0).value(),
-      mRemoteControls[6].getParameter(0).value(),
-      mRemoteControls[7].getParameter(0).value()
+      mRemoteControls[0].getParameter(0),
+      mRemoteControls[1].getParameter(0),
+      mRemoteControls[2].getParameter(0),
+      mRemoteControls[3].getParameter(0),
+      mRemoteControls[4].getParameter(0),
+      mRemoteControls[5].getParameter(0),
+      mRemoteControls[6].getParameter(0),
+      mRemoteControls[7].getParameter(0)
     },
     // second row (Send A)
     {
-      mTrackBank.getItemAt(0).sendBank().getItemAt(0).value(),
-      mTrackBank.getItemAt(1).sendBank().getItemAt(0).value(),
-      mTrackBank.getItemAt(2).sendBank().getItemAt(0).value(),
-      mTrackBank.getItemAt(3).sendBank().getItemAt(0).value(),
-      mTrackBank.getItemAt(4).sendBank().getItemAt(0).value(),
-      mTrackBank.getItemAt(5).sendBank().getItemAt(0).value(),
-      mTrackBank.getItemAt(6).sendBank().getItemAt(0).value(),
-      mTrackBank.getItemAt(7).sendBank().getItemAt(0).value()
+      mTrackBank.getItemAt(0).sendBank().getItemAt(0),
+      mTrackBank.getItemAt(1).sendBank().getItemAt(0),
+      mTrackBank.getItemAt(2).sendBank().getItemAt(0),
+      mTrackBank.getItemAt(3).sendBank().getItemAt(0),
+      mTrackBank.getItemAt(4).sendBank().getItemAt(0),
+      mTrackBank.getItemAt(5).sendBank().getItemAt(0),
+      mTrackBank.getItemAt(6).sendBank().getItemAt(0),
+      mTrackBank.getItemAt(7).sendBank().getItemAt(0)
     },
     // third row (Send B)
     {
-      mTrackBank.getItemAt(0).sendBank().getItemAt(1).value(),
-      mTrackBank.getItemAt(1).sendBank().getItemAt(1).value(),
-      mTrackBank.getItemAt(2).sendBank().getItemAt(1).value(),
-      mTrackBank.getItemAt(3).sendBank().getItemAt(1).value(),
-      mTrackBank.getItemAt(4).sendBank().getItemAt(1).value(),
-      mTrackBank.getItemAt(5).sendBank().getItemAt(1).value(),
-      mTrackBank.getItemAt(6).sendBank().getItemAt(1).value(),
-      mTrackBank.getItemAt(7).sendBank().getItemAt(1).value()
+      mTrackBank.getItemAt(0).sendBank().getItemAt(1),
+      mTrackBank.getItemAt(1).sendBank().getItemAt(1),
+      mTrackBank.getItemAt(2).sendBank().getItemAt(1),
+      mTrackBank.getItemAt(3).sendBank().getItemAt(1),
+      mTrackBank.getItemAt(4).sendBank().getItemAt(1),
+      mTrackBank.getItemAt(5).sendBank().getItemAt(1),
+      mTrackBank.getItemAt(6).sendBank().getItemAt(1),
+      mTrackBank.getItemAt(7).sendBank().getItemAt(1)
     },
     // side knobs bank A (global remotes)
     {
-      mMasterRemotes.getParameter(0).value(),
-      mMasterRemotes.getParameter(1).value(),
-      mMasterRemotes.getParameter(2).value(),
-      mMasterRemotes.getParameter(3).value(),
-      mMasterRemotes.getParameter(4).value(),
-      mMasterRemotes.getParameter(5).value(),
-      mMasterRemotes.getParameter(6).value(),
-      mMasterRemotes.getParameter(7).value(),
+      mMasterRemotes.getParameter(0),
+      mMasterRemotes.getParameter(1),
+      mMasterRemotes.getParameter(2),
+      mMasterRemotes.getParameter(3),
+      mMasterRemotes.getParameter(4),
+      mMasterRemotes.getParameter(5),
+      mMasterRemotes.getParameter(6),
+      mMasterRemotes.getParameter(7),
     },
     // side knobs bank B (device remotes)
     {
-      mEditorRemoteControls.getParameter(0).value(),
-      mEditorRemoteControls.getParameter(1).value(),
-      mEditorRemoteControls.getParameter(2).value(),
-      mEditorRemoteControls.getParameter(3).value(),
-      mEditorRemoteControls.getParameter(4).value(),
-      mEditorRemoteControls.getParameter(5).value(),
-      mEditorRemoteControls.getParameter(6).value(),
-      mEditorRemoteControls.getParameter(7).value()
+      mEditorRemoteControls.getParameter(0),
+      mEditorRemoteControls.getParameter(1),
+      mEditorRemoteControls.getParameter(2),
+      mEditorRemoteControls.getParameter(3),
+      mEditorRemoteControls.getParameter(4),
+      mEditorRemoteControls.getParameter(5),
+      mEditorRemoteControls.getParameter(6),
+      mEditorRemoteControls.getParameter(7)
     },
   };
 
   // track number button and A|B buttons control the following
-  private SettableRangedValue[] mPadControls = {
-    mRemoteControls[0].getParameter(1).value(),
-    mRemoteControls[1].getParameter(1).value(),
-    mRemoteControls[2].getParameter(1).value(),
-    mRemoteControls[3].getParameter(1).value(),
-    mRemoteControls[4].getParameter(1).value(),
-    mRemoteControls[5].getParameter(1).value(),
-    mRemoteControls[6].getParameter(1).value(),
-    mRemoteControls[7].getParameter(1).value()
+  private Parameter[] mPadControls = {
+    mUserControlBank.getControl(0),
+    mUserControlBank.getControl(1),
+    mUserControlBank.getControl(2),
+    mUserControlBank.getControl(3),
+    mUserControlBank.getControl(4),
+    mUserControlBank.getControl(5),
+    mUserControlBank.getControl(6),
+    mUserControlBank.getControl(7)
   };
 
   private int[] mPadControlsValue = {
@@ -185,18 +190,19 @@ public class APC40 {
   private int mTopKnobControl;
   private int mSideKnobControl;
 
+  private MidiIn mMidiIn;
+  private MidiOut mMidiOut;
+
   public void init() {
+    mMidiIn = mAPCMidiIn;
+    mMidiOut = mAPCMidiOut;
+
     mMidiIn.setMidiCallback((ShortMidiMessageReceivedCallback) msg -> onMidi(msg));
     mMidiOut.sendSysex("F0 7E 7F 06 01 F7"); // send introduction message
     mMidiOut.sendSysex("F0 47 7F 29 60 00 04 41 00 00 00 F7"); // set mode
 
-    mTopKnobControl = 0;
-    mSideKnobControl = 3;
-    updateAllKnobLEDs();
-
-    mMasterTrack.addIsSelectedInMixerObserver(selected -> {
-      mMidiOut.sendMidi((MSG_NOTE_ON << 4), MASTER_NOTE, selected ? 1 : 0);
-    });
+    mTopKnobControl = TOP_KNOBS_SEND1;
+    mSideKnobControl = SIDE_KNOBS_GLOBAL;
 
     for (int i = 0; i < 8; i++) {
       final int track_idx = i;
@@ -222,14 +228,14 @@ public class APC40 {
 
       for (int bank = 0; bank < mKnobControls.length; bank++) {
         final int bank_idx = bank;
-        mKnobControls[bank_idx][track_idx].addValueObserver(128, value -> {
+        mKnobControls[bank_idx][track_idx].value().addValueObserver(128, value -> {
           mKnobDAWValues[bank_idx][track_idx] = value;
           if (mKnobAPCValues[bank_idx][track_idx] != value)
             setKnob(bank_idx, track_idx, value);
         });
       }
 
-      mPadControls[track_idx].addValueObserver(4, value -> {
+      mPadControls[track_idx].value().addValueObserver(4, value -> {
         final int value_int = (int)Math.round(value);
         mPadControlsValue[track_idx] = value_int;
         mMidiOut.sendMidi((MSG_NOTE_ON << 4) | track_idx, TRACK_NUM_NOTE, (value_int & 1) == 1 ? 127 : 0);
@@ -266,13 +272,35 @@ public class APC40 {
         updateClipLED(idx, track_idx, slot, state, queued);
       });
     }
+
+    setupButtonObserver(mTransport.isPlaying(), PLAY_NOTE);
+    setupButtonObserver(mTransport.isMetronomeEnabled(), METRONOME_NOTE);
+    setupButtonObserver(mTransport.isArrangerRecordEnabled(), RECORD_NOTE);
+    setupButtonObserver(mTransport.isArrangerAutomationWriteEnabled(), SESSION_REC_NOTE);
+    setupButtonObserver(mCursorDevice.isEnabled(), DEVICE_ON_OFF_NOTE);
+    setupButtonObserver(mCursorDevice.isWindowOpen(), DETAIL_VIEW_NOTE);
+    
+    mMasterTrack.addIsSelectedInMixerObserver(selected -> {
+      mMidiOut.sendMidi((MSG_NOTE_ON << 4), MASTER_NOTE, selected ? 1 : 0);
+    });
+
+    mCursorDevice.position().addValueObserver(val -> {
+      updateKnobIndicators();
+      updateAllKnobLEDs();
+    });
+
+    updateAllKnobLEDs();
+    updateTopKnobSelector();
+    updateSideButtons();
+  }
+
+  public void setupButtonObserver(BooleanValue value, int note) {
+    value.addValueObserver(val -> {
+      mMidiOut.sendMidi((MSG_NOTE_ON << 4), note, val ? 1 : 0); 
+    });
   }
 
   public void exit() {
-  }
-
-  public void updateAllLED() {
-
   }
 
   private void updateColumnLED(int trackIdx) {
@@ -326,8 +354,30 @@ public class APC40 {
     }
   }
 
+  private void updateSideButtons() {
+    mMidiOut.sendMidi((MSG_NOTE_ON << 4) | 0, BANK_NOTE, mSideKnobControl == SIDE_KNOBS_GLOBAL ? 1 : 0);
+    updateTopKnobSelector();
+  }
+
   private void setKnob(int bank, int index, int value) {
     updateKnobLEDs(bank, index, value);
+  }
+
+  private void updateKnobIndicators() {
+    for (int i = 0; i < NUM_TRACKS; i++) {
+      for (int bank = 0; bank < mKnobControls.length; bank++)
+        mKnobControls[bank][i].setIndication(false);
+    }
+
+    for (int i = 0; i < NUM_TRACKS; i++) {
+      mKnobControls[mTopKnobControl][i].setIndication(true);
+      mKnobControls[mSideKnobControl][i].setIndication(true);
+    }
+  }
+
+  private void updateAllLED() {
+    updateTrackButtons();
+    for (int i = 0; i < NUM_TRACKS; i++) updateColumnLED(i);
   }
 
   private void updateTrackButtons() {
@@ -341,9 +391,10 @@ public class APC40 {
   }
 
   private void updateTopKnobSelector() {
-    mMidiOut.sendMidi((MSG_NOTE_ON << 4) | 0, PAN_NOTE, mTopKnobControl == TOP_KNOBS_DEVICE ? 1 : 0);
-    mMidiOut.sendMidi((MSG_NOTE_ON << 4) | 0, SEND_A_NOTE, mTopKnobControl == TOP_KNOBS_SEND1 ? 1 : 0);
-    mMidiOut.sendMidi((MSG_NOTE_ON << 4) | 0, SEND_B_NOTE, mTopKnobControl == TOP_KNOBS_SEND2 ? 1 : 0);
+    mMidiOut.sendMidi((MSG_NOTE_ON << 4), PAN_NOTE, mTopKnobControl == TOP_KNOBS_DEVICE ? 1 : 0);
+    mMidiOut.sendMidi((MSG_NOTE_ON << 4), SEND_A_NOTE, mTopKnobControl == TOP_KNOBS_SEND1 ? 1 : 0);
+    mMidiOut.sendMidi((MSG_NOTE_ON << 4), SEND_B_NOTE, mTopKnobControl == TOP_KNOBS_SEND2 ? 1 : 0);
+    updateKnobIndicators();
   }
 
   private void processNote(int note, int velocity, int channel, boolean noteOn) {
@@ -388,6 +439,42 @@ public class APC40 {
 
     // switch for noteOn only buttons
     switch(note) {
+      case CLIP_DEV_VIEW_NOTE:
+        mApplication.toggleDevices();
+        break;
+      case DETAIL_VIEW_NOTE:
+        mCursorDevice.isWindowOpen().toggle();
+        break;
+      case DEVICE_ON_OFF_NOTE:
+        mCursorDevice.isEnabled().toggle();
+        break;
+      case BANK_LEFT_NOTE:
+        mEditorRemoteControls.selectPreviousPage(true);
+        break;
+      case BANK_RIGHT_NOTE:
+        mEditorRemoteControls.selectNextPage(true);
+        break;
+      case DEVICE_LEFT_NOTE:
+        mCursorDevice.selectPrevious();
+        break;
+      case DEVICE_RIGHT_NOTE:
+        mCursorDevice.selectNext();
+        break;
+      case TAP_TEMPO_NOTE:
+        mTransport.tapTempo();
+        break;
+      case METRONOME_NOTE:
+        mTransport.isMetronomeEnabled().toggle();
+        break;
+      case PLAY_NOTE:
+        mTransport.togglePlay();
+        break;
+      case RECORD_NOTE:
+        mTransport.isArrangerRecordEnabled().toggle();
+        break;
+      case SESSION_REC_NOTE:
+        mTransport.isArrangerAutomationWriteEnabled().toggle();
+        break;
       case MASTER_NOTE:
         mMasterTrack.selectInEditor();
         break;
@@ -451,7 +538,8 @@ public class APC40 {
       case BANK_NOTE:
         mSideKnobControl = mSideKnobControl == SIDE_KNOBS_DEVICE ? SIDE_KNOBS_GLOBAL : SIDE_KNOBS_DEVICE;
         updateAllKnobLEDs();
-        mMidiOut.sendMidi((MSG_NOTE_ON << 4) | 0, BANK_NOTE, mSideKnobControl == SIDE_KNOBS_GLOBAL ? 1 : 0);
+        updateKnobIndicators();
+        updateSideButtons();
         break;
     }
   }
@@ -459,7 +547,7 @@ public class APC40 {
   private void updateKnobLEDs(int bank, int idx, int value) {
     if (bank == mTopKnobControl)
       mMidiOut.sendMidi((MSG_CC << 4) | 0, TOP_KNOBS_CC + idx, value);
-    if (bank == mSideKnobControl)
+    else if (bank == mSideKnobControl)
       mMidiOut.sendMidi((MSG_CC << 4) | 0, SIDE_KNOBS_CC + idx, value);
   }
 
@@ -468,11 +556,11 @@ public class APC40 {
       // top row
       int value = (int)(mKnobControls[mTopKnobControl][idx].get() * 127);
       mMidiOut.sendMidi((MSG_CC << 4) | 0, TOP_KNOBS_CC + idx, value);
-      mMidiOut.sendMidi((MSG_CC << 4) | 0, TOP_KNOBS_CC + 8 + idx, mKnobTypes[mTopKnobControl]);
+      mMidiOut.sendMidi((MSG_CC << 4) | 0, TOP_KNOBS_CC + 8 + idx, mKnobTypes[mTopKnobControl][idx]);
       // side knobs
       value = (int)(mKnobControls[mSideKnobControl][idx].get() * 127);
       mMidiOut.sendMidi((MSG_CC << 4) | 0, SIDE_KNOBS_CC + idx, value);
-      mMidiOut.sendMidi((MSG_CC << 4) | 0, SIDE_KNOBS_CC + 8 + idx, mKnobTypes[mSideKnobControl]);
+      mMidiOut.sendMidi((MSG_CC << 4) | 0, SIDE_KNOBS_CC + 8 + idx, mKnobTypes[mSideKnobControl][idx]);
     }
   }
 
@@ -510,16 +598,14 @@ public class APC40 {
   }
 
   private void processCC(int cc, int value, int channel) {
-    switch (cc) {
-      case VOLUME_CC:
-        mChannels[channel].volume().set(scaleFader(value), 128);
-        break;
-      case TEMPO_CC:
-        if (value < 64) mTransport.tempo().incRaw(value);
-        else mTransport.tempo().incRaw(value - 128);
-        break;
+    if (cc == VOLUME_CC) {
+      mChannels[channel].volume().set(scaleFader(value), 128);
     }
-    if (cc >= TOP_KNOBS_CC && cc < TOP_KNOBS_CC + 8) {
+    else if (cc == TEMPO_CC) {
+      if (value < 64) mTransport.tempo().incRaw(value);
+      else mTransport.tempo().incRaw(value - 128);
+    }
+    else if (cc >= TOP_KNOBS_CC && cc < TOP_KNOBS_CC + 8) {
       int idx = cc - TOP_KNOBS_CC;
       mKnobControls[mTopKnobControl][idx].set(value, 128);
       mKnobAPCValues[mTopKnobControl][idx] = value;

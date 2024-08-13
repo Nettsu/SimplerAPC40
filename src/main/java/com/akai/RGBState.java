@@ -241,7 +241,7 @@ public class RGBState extends InternalHardwareLightState {
       {"d05d00", 10}, // 7,3
 
       {"ffd293", 12}, // 6,1
-      {"ffbc00", 126}, // 6,2
+      {"ffbc00", 97}, // 6,2
       {"db8a00", 61}, // 6,3
 
       {"f6f69d", 109}, // 5,1

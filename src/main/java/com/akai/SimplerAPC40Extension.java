@@ -24,6 +24,7 @@ public class SimplerAPC40Extension extends ControllerExtension
    @Override
    public void init() {
       mHost = getHost();
+      mApplication = mHost.createApplication();
       
       mTransport = mHost.createTransport();
       mTransport.isPlaying().markInterested();
@@ -31,14 +32,19 @@ public class SimplerAPC40Extension extends ControllerExtension
       mTrackBank = mHost.createTrackBank(NUM_TRACKS, NUM_SENDS, NUM_SCENES);
       mMasterTrack = mHost.createMasterTrack(NUM_SCENES);
       mSceneBank = mTrackBank.sceneBank();
+      mSceneBank.setIndication(true);
       mTrackBank.setShouldShowClipLauncherFeedback(true);
 
-      mMidiIn = mHost.getMidiInPort(0);
-      mMidiOut = mHost.getMidiOutPort(0);
+      mAPCMidiIn = mHost.getMidiInPort(0);
+      mAPCMidiOut = mHost.getMidiOutPort(0);
+      mControlMidiIn = mHost.getMidiInPort(1);
+      mControlMidiOut = mHost.getMidiOutPort(1);
 
       mRemoteControls = new CursorRemoteControlsPage[NUM_TRACKS];
-      mEditorRemoteControls = mHost.createCursorTrack(3, NUM_SCENES).createCursorDevice().createCursorRemoteControlsPage(8);
+      mCursorDevice = mHost.createCursorTrack(3, NUM_SCENES).createCursorDevice();
+      mEditorRemoteControls = mCursorDevice.createCursorRemoteControlsPage(8);
       mMasterRemotes = mHost.createMasterTrack(0).createCursorRemoteControlsPage(8);
+      mUserControlBank = mHost.createUserControls(8);
       
       mCursorClip = mHost.createLauncherCursorClip(1, 1);
       mCursorClip.clipLauncherSlot().isSelected().markInterested();
@@ -82,29 +88,8 @@ public class SimplerAPC40Extension extends ControllerExtension
       mAPC40 = new APC40();
       mAPC40.init();
 
-      Runnable timerRunnable = new Runnable() {
-         public void run() {
-            if (mSceneUpHeld) mSceneUpTimer++;
-            else mSceneUpTimer = 0;
-
-            if (mSceneDownHeld) mSceneDownTimer++;
-            else mSceneDownTimer = 0;
-
-            if (mSceneUpTimer > HOLD_DELAY) {
-               mSceneBank.scrollPageBackwards();
-               mSceneBank.getItemAt(NUM_SCENES - 1).showInEditor();
-               mSceneBank.getItemAt(0).showInEditor();
-            }
-            if (mSceneDownTimer > HOLD_DELAY) {
-               mSceneBank.scrollPageForwards();
-               mSceneBank.getItemAt(0).showInEditor();
-               mSceneBank.getItemAt(NUM_SCENES - 1).showInEditor();
-            }
-         }
-      };
-     
-      ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-      executor.scheduleAtFixedRate(timerRunnable, 0, 100, TimeUnit.MILLISECONDS);
+      mLaunchControlXL = new LaunchControlXL();
+      mLaunchControlXL.init();
 
       mHost.showPopupNotification("APC40 Mixlaunch Initialized");
    }
@@ -120,12 +105,16 @@ public class SimplerAPC40Extension extends ControllerExtension
    }
 
    public APC40 mAPC40;
+   public LaunchControlXL mLaunchControlXL;
    
    public static ControllerHost mHost;
+   public static Application mApplication;
    public static Transport mTransport;
 
-   public static MidiOut mMidiOut;
-   public static MidiIn mMidiIn;
+   public static MidiOut mAPCMidiOut;
+   public static MidiOut mControlMidiOut;
+   public static MidiIn mAPCMidiIn;
+   public static MidiIn mControlMidiIn;
 
    public static TrackBank mTrackBank;
    public static SceneBank mSceneBank;
@@ -134,12 +123,9 @@ public class SimplerAPC40Extension extends ControllerExtension
    public static CursorRemoteControlsPage mMasterRemotes;
    public static CursorRemoteControlsPage[] mRemoteControls;
    public static CursorRemoteControlsPage mEditorRemoteControls;
+   public static UserControlBank mUserControlBank;
+   public static CursorDevice mCursorDevice;
    public static Clip mCursorClip;
-
-   public static boolean mSceneUpHeld = false;
-   public static int mSceneUpTimer = 0;
-   public static boolean mSceneDownHeld = false;
-   public static int mSceneDownTimer = 0;
 
    public static boolean mShift;
 }
