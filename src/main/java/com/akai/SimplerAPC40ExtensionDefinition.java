@@ -59,13 +59,13 @@ public class SimplerAPC40ExtensionDefinition extends ControllerExtensionDefiniti
    @Override
    public int getNumMidiInPorts()
    {
-      return 2;
+      return 1;
    }
 
    @Override
    public int getNumMidiOutPorts()
    {
-      return 2;
+      return 1;
    }
 
    @Override

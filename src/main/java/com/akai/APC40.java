@@ -60,11 +60,11 @@ public class APC40 {
   public static final int RING_VOLUME = 2;
   public static final int RING_PAN = 3;
 
-  static final int TOP_KNOBS_DEVICE = 0;
-  static final int TOP_KNOBS_SEND1 = 1;
-  static final int TOP_KNOBS_SEND2 = 2;
-  static final int SIDE_KNOBS_GLOBAL = 3;
-  static final int SIDE_KNOBS_DEVICE = 4;
+  static final int KNOBS_DEVICE = 0;
+  static final int KNOBS_SEND1 = 1;
+  static final int KNOBS_SEND2 = 2;
+  static final int KNOBS_GLOBAL = 3;
+  static final int KNOBS_CURSOR = 4;
 
   static final int CLIP_STATE_STOPPED = 0;
   static final int CLIP_STATE_PLAYING = 1;
@@ -103,7 +103,7 @@ public class APC40 {
       RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME
     },
     {
-      RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_PAN, RING_PAN, RING_VOLUME
+      RING_VOLUME, RING_PAN, RING_VOLUME, RING_VOLUME, RING_VOLUME, RING_PAN, RING_VOLUME, RING_VOLUME
     },
     {
       RING_SINGLE, RING_SINGLE, RING_SINGLE, RING_SINGLE, RING_SINGLE, RING_SINGLE, RING_SINGLE, RING_SINGLE
@@ -189,6 +189,8 @@ public class APC40 {
 
   private int mTopKnobControl;
   private int mSideKnobControl;
+  private boolean mDevLock = false;
+  private boolean mBank = false;
 
   private MidiIn mMidiIn;
   private MidiOut mMidiOut;
@@ -201,8 +203,8 @@ public class APC40 {
     mMidiOut.sendSysex("F0 7E 7F 06 01 F7"); // send introduction message
     mMidiOut.sendSysex("F0 47 7F 29 60 00 04 41 00 00 00 F7"); // set mode
 
-    mTopKnobControl = TOP_KNOBS_SEND1;
-    mSideKnobControl = SIDE_KNOBS_GLOBAL;
+    mTopKnobControl = KNOBS_SEND1;
+    mSideKnobControl = KNOBS_DEVICE;
 
     for (int i = 0; i < 8; i++) {
       final int track_idx = i;
@@ -355,7 +357,8 @@ public class APC40 {
   }
 
   private void updateSideButtons() {
-    mMidiOut.sendMidi((MSG_NOTE_ON << 4) | 0, BANK_NOTE, mSideKnobControl == SIDE_KNOBS_GLOBAL ? 1 : 0);
+    mMidiOut.sendMidi((MSG_NOTE_ON << 4) | 0, BANK_NOTE, mBank ? 1 : 0);
+    mMidiOut.sendMidi((MSG_NOTE_ON << 4) | 0, DEVICE_LOCK_NOTE, mDevLock ? 1 : 0);
     updateTopKnobSelector();
   }
 
@@ -391,9 +394,9 @@ public class APC40 {
   }
 
   private void updateTopKnobSelector() {
-    mMidiOut.sendMidi((MSG_NOTE_ON << 4), PAN_NOTE, mTopKnobControl == TOP_KNOBS_DEVICE ? 1 : 0);
-    mMidiOut.sendMidi((MSG_NOTE_ON << 4), SEND_A_NOTE, mTopKnobControl == TOP_KNOBS_SEND1 ? 1 : 0);
-    mMidiOut.sendMidi((MSG_NOTE_ON << 4), SEND_B_NOTE, mTopKnobControl == TOP_KNOBS_SEND2 ? 1 : 0);
+    mMidiOut.sendMidi((MSG_NOTE_ON << 4), PAN_NOTE, mTopKnobControl == KNOBS_DEVICE ? 1 : 0);
+    mMidiOut.sendMidi((MSG_NOTE_ON << 4), SEND_A_NOTE, mTopKnobControl == KNOBS_SEND1 ? 1 : 0);
+    mMidiOut.sendMidi((MSG_NOTE_ON << 4), SEND_B_NOTE, mTopKnobControl == KNOBS_SEND2 ? 1 : 0);
     updateKnobIndicators();
   }
 
@@ -421,6 +424,12 @@ public class APC40 {
         mPadControls[channel].setImmediately(new_val);
         mPadControlsValue[channel] = (int)Math.round(new_val * 3);
         break;
+      case DEVICE_LOCK_NOTE:
+        mDevLock = noteOn;
+        updateAllKnobLEDs();
+        updateKnobIndicators();
+        updateSideButtons();
+        break;
     }
 
     if (velocity == 0) return;
@@ -432,10 +441,11 @@ public class APC40 {
       return;
     }
 
-    if (note >= SCENE_NOTE && note < SCENE_NOTE + NUM_SCENES) {
-      mSceneBank.launch(note - SCENE_NOTE);
-      return;
-    }
+    // disable scene launch because it keeps fucking up my recording
+    // if (note >= SCENE_NOTE && note < SCENE_NOTE + NUM_SCENES) {
+    //   mSceneBank.launch(note - SCENE_NOTE);
+    //   return;
+    // }
 
     // switch for noteOn only buttons
     switch(note) {
@@ -478,10 +488,11 @@ public class APC40 {
       case MASTER_NOTE:
         mMasterTrack.selectInEditor();
         break;
-      case STOP_ALL_NOTE:
-        for (int col = 0; col < NUM_TRACKS; col++)
-        mChannels[col].stop();
-        break;
+      // disable scene stop because it keeps fucking up my recording
+      // case STOP_ALL_NOTE:
+      //   for (int col = 0; col < NUM_TRACKS; col++)
+      //   mChannels[col].stop();
+      //   break;
       case CLIP_STOP_NOTE:
         mChannels[channel].stop();
         break;
@@ -507,8 +518,11 @@ public class APC40 {
         mChannels[channel].selectInEditor();
         break;
       case SOLO_NOTE:
-        boolean solo_val = mChannels[channel].solo().getAsBoolean();
-        mChannels[channel].solo().set(!solo_val);
+        // boolean solo_val = mChannels[channel].solo().getAsBoolean();
+        // mChannels[channel].solo().set(!solo_val);
+        mKnobControls[0][channel].reset();
+        mKnobControls[1][channel].reset();
+        mKnobControls[2][channel].reset();
         break;
       case ARM_NOTE:
         if (!mShift) {
@@ -521,22 +535,23 @@ public class APC40 {
         }
         break;
       case PAN_NOTE:
-        mTopKnobControl = TOP_KNOBS_DEVICE;
+        mTopKnobControl = KNOBS_DEVICE;
         updateAllKnobLEDs();
         updateTopKnobSelector();
         break;
       case SEND_A_NOTE:
-        mTopKnobControl = TOP_KNOBS_SEND1;
+        mTopKnobControl = KNOBS_SEND1;
         updateAllKnobLEDs();
         updateTopKnobSelector();
         break;
       case SEND_B_NOTE:
-        mTopKnobControl = TOP_KNOBS_SEND2;
+        mTopKnobControl = KNOBS_SEND2;
         updateAllKnobLEDs();
         updateTopKnobSelector();
         break;
       case BANK_NOTE:
-        mSideKnobControl = mSideKnobControl == SIDE_KNOBS_DEVICE ? SIDE_KNOBS_GLOBAL : SIDE_KNOBS_DEVICE;
+        mBank = !mBank;
+        mSideKnobControl = mSideKnobControl == KNOBS_CURSOR ? KNOBS_DEVICE : KNOBS_CURSOR;
         updateAllKnobLEDs();
         updateKnobIndicators();
         updateSideButtons();
@@ -558,6 +573,7 @@ public class APC40 {
       mMidiOut.sendMidi((MSG_CC << 4) | 0, TOP_KNOBS_CC + idx, value);
       mMidiOut.sendMidi((MSG_CC << 4) | 0, TOP_KNOBS_CC + 8 + idx, mKnobTypes[mTopKnobControl][idx]);
       // side knobs
+      mSideKnobControl = mDevLock ? KNOBS_GLOBAL : (mBank ? KNOBS_CURSOR : KNOBS_DEVICE);
       value = (int)(mKnobControls[mSideKnobControl][idx].get() * 127);
       mMidiOut.sendMidi((MSG_CC << 4) | 0, SIDE_KNOBS_CC + idx, value);
       mMidiOut.sendMidi((MSG_CC << 4) | 0, SIDE_KNOBS_CC + 8 + idx, mKnobTypes[mSideKnobControl][idx]);

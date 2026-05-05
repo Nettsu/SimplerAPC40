@@ -37,8 +37,6 @@ public class SimplerAPC40Extension extends ControllerExtension
 
       mAPCMidiIn = mHost.getMidiInPort(0);
       mAPCMidiOut = mHost.getMidiOutPort(0);
-      mControlMidiIn = mHost.getMidiInPort(1);
-      mControlMidiOut = mHost.getMidiOutPort(1);
 
       mRemoteControls = new CursorRemoteControlsPage[NUM_TRACKS];
       mCursorDevice = mHost.createCursorTrack(3, NUM_SCENES).createCursorDevice();
@@ -88,16 +86,13 @@ public class SimplerAPC40Extension extends ControllerExtension
       mAPC40 = new APC40();
       mAPC40.init();
 
-      mLaunchControlXL = new LaunchControlXL();
-      mLaunchControlXL.init();
-
-      mHost.showPopupNotification("APC40 Mixlaunch Initialized");
+      mHost.showPopupNotification("APC40 Initialized");
    }
 
    @Override
    public void exit() {
       mAPC40.exit();
-      mHost.showPopupNotification("APC40 Mixlaunch Exited");
+      mHost.showPopupNotification("APC40 Exited");
    }
 
    @Override
@@ -105,17 +100,14 @@ public class SimplerAPC40Extension extends ControllerExtension
    }
 
    public APC40 mAPC40;
-   public LaunchControlXL mLaunchControlXL;
    
    public static ControllerHost mHost;
    public static Application mApplication;
    public static Transport mTransport;
 
    public static MidiOut mAPCMidiOut;
-   public static MidiOut mControlMidiOut;
    public static MidiIn mAPCMidiIn;
-   public static MidiIn mControlMidiIn;
-
+   
    public static TrackBank mTrackBank;
    public static SceneBank mSceneBank;
    public static MasterTrack mMasterTrack;
